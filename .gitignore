@@ -7,6 +7,7 @@ node_modules/
 __pycache__/
 *.py[cod]
 .env
+/firmware/skymap_c3/config.h
 
 # Do not add build or editor noise
 .DS_Store
