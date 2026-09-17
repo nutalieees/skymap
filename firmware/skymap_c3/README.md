@@ -8,7 +8,7 @@ This is the cleaned production-oriented replacement for the original monolithic 
 - **Adafruit GC9A01A**
 - **TinyGPSPlus**
 
-Copy `config.h.example` to `config.h`, then set pins for your specific ESP32-C3 board and GPS module. `config.h` is deliberately ignored by Git because pin assignments are hardware-specific.
+Copy `config.h.example` to `config.h`. GPS UART defaults to your tested GPIO 16/17 wiring; set the display pins for your specific ESP32-C3 board. `config.h` is deliberately ignored by Git because pin assignments are hardware-specific.
 
 ## Electrical assumptions
 

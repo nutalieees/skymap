@@ -25,8 +25,8 @@ The GPS antenna must sit at the outermost upper star point, facing the sky. Keep
 | Signal | ESP32-C3 GPIO | Note |
 | --- | --- | --- |
 | Display SCLK / MOSI / CS / DC / RST | 4 / 6 / 7 / 2 / 3 | Defined in `firmware/skymap_c3/config.h.example`; verify against the final C3 module and boot strapping rules. |
-| GPS TX → ESP RX | 20 | Required UART data path. |
-| ESP TX → GPS RX | 21 | Optional configuration path. |
+| GPS TX → ESP RX | 16 | Required UART data path; matches the tested original build. |
+| ESP TX → GPS RX | 17 | Optional configuration path; matches the tested original build. |
 | USB-C | native USB pins or USB-UART | Choose one programming method before schematic capture. |
 
 ## Required schematic items
