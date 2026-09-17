@@ -1,0 +1,157 @@
+import struct
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import numpy as np
+
+# ----------1. loading catalogue (parse file) ----------------
+FILENAME = "ybsc5/catalog"   # adjust to your path
+HIP_CROSSMATCH_FILE = "hip_hr.tsv"
+
+colspecs = [
+    (0, 4),       # HR number
+    (4, 14),      # Name
+    (75, 77),     # RA hours
+    (77, 79),     # RA minutes
+    (79, 83),     # RA seconds
+    (83, 84),     # Dec sign
+    (84, 86),     # Dec degrees
+    (86, 88),     # Dec minutes
+    (88, 90),     # Dec seconds
+    (102, 107),   # Visual magnitude
+]
+
+names = [
+    "HR",
+    "Name",
+    "RA_h",
+    "RA_m",
+    "RA_s",
+    "Dec_sign",
+    "Dec_d",
+    "Dec_m",
+    "Dec_s",
+    "Mag",
+]
+
+
+df = pd.read_fwf(
+    FILENAME,
+    colspecs=colspecs,
+    names=names,
+    encoding="latin-1",
+    dtype={"Dec_sign": str}
+)
+
+# ----------2. cleaning and processing data ----------------
+
+# Remove rows missing important data
+df = df.dropna(subset=[
+    "HR", "RA_h", "RA_m", "RA_s",
+    "Dec_d", "Dec_m", "Dec_s", "Mag"
+])
+
+#### adding HIP column for constellation line drawing later on
+# Load HR-to-HIP cross-reference downloaded from VizieR
+hip_lookup = pd.read_csv(
+    HIP_CROSSMATCH_FILE,
+    sep="\t",
+    comment="#",
+    dtype=str
+)
+
+# Clean column names
+hip_lookup.columns = hip_lookup.columns.str.strip()
+
+# Convert values to numbers.
+# Invalid rows such as "----" will become NaN.
+hip_lookup["HR"] = pd.to_numeric(
+    hip_lookup["HR"],
+    errors="coerce"
+)
+
+hip_lookup["HIP"] = pd.to_numeric(
+    hip_lookup["HIP"],
+    errors="coerce"
+)
+
+# Remove blank, unit, and separator rows
+hip_lookup = hip_lookup.dropna(subset=["HR", "HIP"])
+
+hip_lookup["HR"] = hip_lookup["HR"].astype(int)
+hip_lookup["HIP"] = hip_lookup["HIP"].astype(int)
+
+# Add the HIP column to the Bright Star Catalogue dataframe
+df = df.merge(
+    hip_lookup[["HR", "HIP"]],
+    on="HR",
+    how="left"
+)
+
+# Allow stars without a HIP number
+df["HIP"] = df["HIP"].astype("Int64")
+
+# Make HR a clean integer ID
+df["HR"] = df["HR"].astype(int) 
+
+# Clean text/name columns
+df["Name"] = df["Name"].fillna("").str.strip()
+
+# Convert RA from h/m/s to decimal hours
+df["RA_hours"] = df["RA_h"] + df["RA_m"] / 60 + df["RA_s"] / 3600
+
+# Convert RA from hours to degrees
+df["RA_deg"] = df["RA_hours"] * 15.0
+
+# Convert Dec from deg/min/sec to decimal degrees
+df["Dec_sign"] = df["Dec_sign"].fillna("+").str.strip()
+df["Dec"] = df["Dec_d"] + df["Dec_m"] / 60 + df["Dec_s"] / 3600
+df.loc[df["Dec_sign"] == "-", "Dec"] *= -1
+
+stars = df[["HR","HIP", "Name", "RA_hours", "RA_deg", "Dec", "Mag"]].copy()
+ 
+print(f"Total stars loaded: {len(stars)}")
+
+
+# ----------3. sanity checks ----------------
+print("\n── Sirius (HR 2491) ──")
+sirius = stars[stars["HR"] == 2491]
+print(
+    sirius[
+        ["HR", "Name", "RA_hours", "RA_deg", "Dec", "Mag"]
+    ].to_string(index=False)
+)
+print(f"  Expected: RA≈101.287°, Dec≈-16.716°, Mag≈-1.46")
+ 
+print("\n── Vega (HR 7001) ──")
+vega = stars[stars["HR"] == 7001]
+print(
+    vega[
+        ["HR", "Name", "RA_hours", "RA_deg", "Dec", "Mag"]
+    ].to_string(index=False)
+)
+print(f"  Expected: RA≈279.235°, Dec≈+38.783°, Mag≈0.03")
+
+# ----------4. filter bright stars for plotting/ESP32 ----------------
+MAG_CUTOFF = 4.5
+ 
+filtered = stars[stars["Mag"] <= MAG_CUTOFF].copy()
+filtered = filtered.sort_values("Mag").reset_index(drop=True) #resstting index after sorting by magnitude (brightest first)
+print(f"\nStars after mag ≤ {MAG_CUTOFF} filter: {len(filtered)}") #length of the filtered dataframe
+print(f"Brightest: {filtered.iloc[0]['Name']}, Mag={filtered.iloc[0]['Mag']:.2f}") #print brightest star w mag
+print(f"Dimmest:   {filtered.iloc[-1]['Name']}, Mag={filtered.iloc[-1]['Mag']:.2f}")#print dimmest star w mag
+
+# ----------5. save cleaned and filtered data ----------------
+filtered.to_csv("stars_filtered.csv", index=False)
+print("\nSaved: stars_filtered.csv")
+ 
+
+#----------6. additional checks for HIP IDs ----------------
+print("\n── HIP crossmatch check ──")
+print(
+    stars[stars["HR"].isin([2491, 7001])][
+        ["HR", "HIP", "Name"]
+    ].to_string(index=False)
+)
+
+print(f"\nStars with HIP IDs: {stars['HIP'].notna().sum()}")
